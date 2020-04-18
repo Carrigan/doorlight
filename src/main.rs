@@ -11,6 +11,7 @@ use crate::hal::prelude::*;
 use crate::hal::delay::Delay;
 use crate::rt::entry;
 
+mod rainbow;
 
 #[derive(Clone, Copy)]
 pub struct DotStar {
@@ -60,25 +61,33 @@ fn main() -> ! {
     let mut was_pressed = false; // For checking that the press is a transition
     let mut is_blue = true;      // For checking what color we are on
 
+    // loop {
+    //   let is_pressed = button.is_high().unwrap();
+
+    //   if is_pressed && !was_pressed {
+    //     timer.delay_ms(100 as u32);
+
+
+    //     if is_blue {
+    //       change_strip_color(&mut leds, 0xFF, 0x00, 0x00);
+    //     } else {
+    //       change_strip_color(&mut leds, 0x00, 0x00, 0xFF);
+    //     }
+
+    //     is_blue = !is_blue;
+    //     refresh_display(&leds, &mut clock, &mut data);
+    //     timer.delay_ms(100 as u32);
+    //   }
+
+    //   was_pressed = is_pressed;
+    // }
+
+    let mut rainbow_state = rainbow::RainbowState::new();
+
     loop {
-      let is_pressed = button.is_high().unwrap();
-
-      if is_pressed && !was_pressed {
-        timer.delay_ms(100 as u32);
-
-
-        if is_blue {
-          change_strip_color(&mut leds, 0xFF, 0x00, 0x00);
-        } else {
-          change_strip_color(&mut leds, 0x00, 0x00, 0xFF);
-        }
-
-        is_blue = !is_blue;
-        refresh_display(&leds, &mut clock, &mut data);
-        timer.delay_ms(100 as u32);
-      }
-
-      was_pressed = is_pressed;
+      rainbow_state.advance_leds(&mut leds, 5);
+      refresh_display(&leds, &mut clock, &mut data);
+      timer.delay_ms(10 as u32);
     }
 }
 
@@ -92,11 +101,11 @@ fn change_strip_color(leds: &mut [DotStar], red: u8, green: u8, blue: u8) {
 
 fn send_byte<CP: hal::prelude::OutputPin, DP: hal::prelude::OutputPin>(byte: u8, clock: &mut CP, data: &mut DP) {
     for x in 0..8 {
-        let current_bit = (1 & (byte >> x)) == 1;
+        let current_bit = (1 & (byte >> (7 - x))) == 1;
 
-        if current_bit { data.set_high(); } else { data.set_low(); }
-        clock.set_high();
+        if current_bit { data.set_low(); } else { data.set_high(); }
         clock.set_low();
+        clock.set_high();
     }
 }
 
