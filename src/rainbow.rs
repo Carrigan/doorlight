@@ -1,13 +1,18 @@
-use super::DotStar;
+use super::led::Color;
 
 pub struct RainbowState {
   index: u8
 }
 
-// Between 0 - 252
-// multiply by 6
+// There are 6 stages as follows, where / means "is ramping up", \ means "is
+// ramping down", and * means is fully on.
+//   0 1 2 3 4 5
+// R * \     / *
+// G / * * \
+// B     / * * \
+// Since 6 does not go into 256, wrap our index at 252 making 6 groups of 42.
 
-fn index_to_color(led: &mut DotStar, index: u8) {
+fn index_to_color(led: &mut Color, index: u8) {
   let step = index / 42;
   let remainder = index % 42;
 
@@ -33,6 +38,7 @@ fn index_to_color(led: &mut DotStar, index: u8) {
   };
 }
 
+// This applies an index shift between LEDs, where a cycle is 252 units.
 fn rotate_position(index: u8, position: u8) -> u8 {
   let offset = position * 15;
 
@@ -48,7 +54,7 @@ impl RainbowState {
     RainbowState { index: 0 }
   }
 
-  pub fn advance_leds(&mut self, leds: &mut [DotStar], amount: u8) {
+  pub fn advance_leds(&mut self, leds: &mut [Color], amount: u8) {
     // Advance
     self.index += amount;
     if self.index >= 252 {
