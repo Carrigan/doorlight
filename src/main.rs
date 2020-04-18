@@ -6,7 +6,6 @@ extern crate panic_halt;
 
 extern crate stm32l4xx_hal as hal;
 
-#[macro_use]
 extern crate cortex_m_rt as rt;
 use crate::hal::prelude::*;
 use crate::hal::delay::Delay;
@@ -24,8 +23,8 @@ impl DotStar {
   pub fn white() -> DotStar {
     DotStar {
       red: 0xFF,
-      green: 0,
-      blue: 0
+      green: 0xFF,
+      blue: 0xFF
     }
   }
 }
@@ -41,18 +40,54 @@ fn main() -> ! {
 
     // Try a different clock configuration
     let clocks = rcc.cfgr.hclk(8.mhz()).freeze(&mut flash.acr);
-    // let mut timer = Delay::new(cp.SYST, clocks);
+    let mut timer = Delay::new(cp.SYST, clocks);
 
     // Bit Banging output
     let mut gpioa = dp.GPIOA.split(&mut rcc.ahb2);
     let mut clock = gpioa.pa0.into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper);
     let mut data = gpioa.pa1.into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper);
 
+    // Initialize our button and button state
+    let mut gpiod = dp.GPIOD.split(&mut rcc.ahb2);
+    let button = gpioa.pa11.into_pull_up_input(&mut gpioa.moder, &mut gpioa.pupdr);
+
     // LEDs
-    let leds: [DotStar; 16] = [DotStar::white(); 16];
+    let mut leds: [DotStar; 16] = [DotStar::white(); 16];
+    change_strip_color(&mut leds, 0x00, 0x00, 0xFF);
     refresh_display(&leds, &mut clock, &mut data);
 
-    loop {}
+    // For the program loop
+    let mut was_pressed = false; // For checking that the press is a transition
+    let mut is_blue = true;      // For checking what color we are on
+
+    loop {
+      let is_pressed = button.is_high().unwrap();
+
+      if is_pressed && !was_pressed {
+        timer.delay_ms(100 as u32);
+
+
+        if is_blue {
+          change_strip_color(&mut leds, 0xFF, 0x00, 0x00);
+        } else {
+          change_strip_color(&mut leds, 0x00, 0x00, 0xFF);
+        }
+
+        is_blue = !is_blue;
+        refresh_display(&leds, &mut clock, &mut data);
+        timer.delay_ms(100 as u32);
+      }
+
+      was_pressed = is_pressed;
+    }
+}
+
+fn change_strip_color(leds: &mut [DotStar], red: u8, green: u8, blue: u8) {
+  for led in leds {
+    led.blue = blue;
+    led.green = green;
+    led.red = red;
+  }
 }
 
 fn send_byte<CP: hal::prelude::OutputPin, DP: hal::prelude::OutputPin>(byte: u8, clock: &mut CP, data: &mut DP) {
